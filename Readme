@@ -1,0 +1,10 @@
+Running:
+in src/ -> catkin_make
+source devel/setup.bash
+rosbag play ~/Downloads/cloud.bag
+rosrun perception perception input:=/center/points
+rviz -> see /output object
+
+
+To Fix
+intensity information is getting lost in ros<->pcl conversions

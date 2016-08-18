@@ -1,0 +1,10 @@
+/home/sai/git/ros_tutorial/ros_tut/install/_setup_util.py
+/home/sai/git/ros_tutorial/ros_tut/install/env.sh
+/home/sai/git/ros_tutorial/ros_tut/install/setup.bash
+/home/sai/git/ros_tutorial/ros_tut/install/setup.sh
+/home/sai/git/ros_tutorial/ros_tut/install/setup.zsh
+/home/sai/git/ros_tutorial/ros_tut/install/.rosinstall
+/home/sai/git/ros_tutorial/ros_tut/install/lib/pkgconfig/my_pcl_tutorial.pc
+/home/sai/git/ros_tutorial/ros_tut/install/share/my_pcl_tutorial/cmake/my_pcl_tutorialConfig.cmake
+/home/sai/git/ros_tutorial/ros_tut/install/share/my_pcl_tutorial/cmake/my_pcl_tutorialConfig-version.cmake
+/home/sai/git/ros_tutorial/ros_tut/install/share/my_pcl_tutorial/package.xml

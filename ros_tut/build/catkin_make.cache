@@ -1,0 +1,2 @@
+my_pcl_tutorial:perception
+-DCATKIN_DEVEL_PREFIX=/home/sai/git/ros_tutorial/ros_tut/devel -DCMAKE_INSTALL_PREFIX=/home/sai/git/ros_tutorial/ros_tut/install -G Unix Makefiles

@@ -1,0 +1,8 @@
+prefix=/home/sai/git/ros_tutorial/ros_tut/install
+
+Name: perception
+Description: Description of perception
+Version: 0.0.0
+Cflags: 
+Libs: -L/home/sai/git/ros_tutorial/ros_tut/install/lib 
+Requires: 

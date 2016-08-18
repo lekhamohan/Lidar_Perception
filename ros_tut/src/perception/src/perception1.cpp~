@@ -17,10 +17,6 @@ ros::Publisher pub;
 
 void PcltoROSMSG(pcl::PointCloud<pcl::PointXYZ>::Ptr pclCloud, sensor_msgs::PointCloud2& rosMsg) {
 	//function to convert Poincloud<pointXYZ> to pointcloud2 for some reason the inbuild code doesnt work
-
-  //pcl::PCLPointCloud2 outpcl;
-	//sensor_msgs::PointCloud2 output;
-  //pcl_conversions::toROSMsg(cloud, output);
 	pcl::PCLPointCloud2 pcl_pc2;
   pcl::toPCLPointCloud2(*pclCloud, pcl_pc2);
   pcl_conversions::moveFromPCL(pcl_pc2, rosMsg);
@@ -48,12 +44,9 @@ public:
 		filter_neighbour= atoi (arguments[3]);
 		filter_voxel_size= atof (arguments[4]);
 		filter_voxel=false;
-		if(filter_voxel_size>0) {
-			std::cout<<" true\n";
+		if(filter_voxel_size>0)
 			filter_voxel=true;
-		} else {
-			std::cout<<"not true\n";
-		}
+
     po_sub = ao_nh.subscribe (po_topic_name, 1, &MySubscriber::cloud_cb, this );
 		pub = ao_nh.advertise<sensor_msgs::PointCloud2> ("output", 1);
   }
@@ -70,28 +63,20 @@ void MySubscriber::cloud_cb (const sensor_msgs::PointCloud2ConstPtr& input)
   pcl::fromROSMsg (*input, cloud);
  	std::vector< int > a;
 	pcl::removeNaNFromPointCloud (cloud,cloud,a);
-	//std::cout<<"1\n";
-  pcl::PointCloud<pcl::PointXYZ>::Ptr cloudPtr(new pcl::PointCloud<pcl::PointXYZ>);
-	cloudPtr=cloud.makeShared();
 	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZ>);
+	cloud_filtered=cloud.makeShared();
 
+	// voxel filtering
 	if(filter_voxel) {
-		std::cout<<"voxel filtering\n";
-		pcl::PointCloud<pcl::PointXYZ>::Ptr cloudPtr1 (new pcl::PointCloud<pcl::PointXYZ>);
 		pcl::VoxelGrid<pcl::PointXYZ >sor;
-		sor.setInputCloud (cloudPtr);
+		sor.setInputCloud (cloud_filtered);
 		sor.setLeafSize (filter_voxel_size, filter_voxel_size, filter_voxel_size);
 		sor.filter (*cloud_filtered);
-		cloudPtr= cloud_filtered;
-	} else {
-		std::cout<<"not voxel filtering\n";
 	}
 
-	// filtering
-	//std::cout<<"radius "<<filter_radius<<std::endl;
+	// radius filtering
 	pcl::RadiusOutlierRemoval<pcl::PointXYZ> outrem;
-	//pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZ>);
-	outrem.setInputCloud (cloudPtr);
+	outrem.setInputCloud (cloud_filtered);
 	outrem.setRadiusSearch (filter_radius);
 	outrem.setMinNeighborsInRadius (filter_neighbour);
 	outrem.filter (*cloud_filtered);

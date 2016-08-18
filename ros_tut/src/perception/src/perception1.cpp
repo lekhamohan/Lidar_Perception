@@ -35,6 +35,8 @@ class MySubscriber
   ros::Subscriber po_sub;
 	float filter_radius;//2
 	int filter_neighbour;//3
+	float filter_voxel_size;//4
+	bool filter_voxel;
 
   void cloud_cb (const sensor_msgs::PointCloud2ConstPtr& input);
 public:
@@ -44,6 +46,12 @@ public:
 		po_topic_name= arguments[1];
 		filter_radius= atof (arguments[2]);
 		filter_neighbour= atoi (arguments[3]);
+		filter_voxel_size= atof (arguments[4]);
+		filter_voxel=false;
+		if(filter_voxel_size>0) {
+			//std::cout<<" true\n";
+			filter_voxel=true;
+		} 
     po_sub = ao_nh.subscribe (po_topic_name, 1, &MySubscriber::cloud_cb, this );
 		pub = ao_nh.advertise<sensor_msgs::PointCloud2> ("output", 1);
   }
@@ -63,11 +71,22 @@ void MySubscriber::cloud_cb (const sensor_msgs::PointCloud2ConstPtr& input)
 	//std::cout<<"1\n";
   pcl::PointCloud<pcl::PointXYZ>::Ptr cloudPtr(new pcl::PointCloud<pcl::PointXYZ>);
 	cloudPtr=cloud.makeShared();
+	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZ>);
+
+	if(filter_voxel) {
+		//std::cout<<"voxel filtering\n";
+		pcl::PointCloud<pcl::PointXYZ>::Ptr cloudPtr1 (new pcl::PointCloud<pcl::PointXYZ>);
+		pcl::VoxelGrid<pcl::PointXYZ >sor;
+		sor.setInputCloud (cloudPtr);
+		sor.setLeafSize (filter_voxel_size, filter_voxel_size, filter_voxel_size);
+		sor.filter (*cloud_filtered);
+		cloudPtr= cloud_filtered;
+	} 
 
 	// filtering
 	//std::cout<<"radius "<<filter_radius<<std::endl;
 	pcl::RadiusOutlierRemoval<pcl::PointXYZ> outrem;
-	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZ>);
+	//pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZ>);
 	outrem.setInputCloud (cloudPtr);
 	outrem.setRadiusSearch (filter_radius);
 	outrem.setMinNeighborsInRadius (filter_neighbour);

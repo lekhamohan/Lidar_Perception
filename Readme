@@ -4,7 +4,7 @@ Running:
 in src/ -> catkin_make
 source devel/setup.bash
 rosbag play ~/Downloads/cloud.bag
-rosrun perception perception /center/points 0.01 5
+rosrun perception perception /center/points 0.01 5 0.025
 rviz -> see /output object
 
 

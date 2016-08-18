@@ -1,3 +1,5 @@
+Rename the folder Lidar_Perception to ros_tutorial
+
 Running:
 in src/ -> catkin_make
 source devel/setup.bash

@@ -1,0 +1,4 @@
+	//for(int i=1; i<4;i++) 
+		//std::cout<<	output.fields[i].name<<"\n";
+	//output.fields[3].name = "intensities";
+

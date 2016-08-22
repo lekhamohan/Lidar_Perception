@@ -140,7 +140,8 @@ include_directories(
 #   ${catkin_LIBRARIES}
 # )
 add_executable(perception src/perception1.cpp)
-target_link_libraries(perception ${catkin_LIBRARIES})
+target_link_libraries(perception ${catkin_LIBRARIES} libvtkCommon.so libvtkFiltering.so libvtkGraphics.so)
+#target_link_libraries(viz ${PCL_LIBRARIES}  )
 
 #############
 ## Install ##

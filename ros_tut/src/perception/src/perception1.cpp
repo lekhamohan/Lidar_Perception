@@ -26,6 +26,9 @@
 #include <iostream>
 #include <pcl/io/io.h>
 
+#include <pcl/filters/extract_indices.h>
+#include <string>
+
 ros::Publisher pub;
 //new_branch
 
@@ -66,7 +69,8 @@ class MySubscriber
 
   void cloud_cb (const sensor_msgs::PointCloud2ConstPtr& input);
   void region_flow_cluster (pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);//, pcl::visualization::CloudViewer& viewer);
-  void fitPlane(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
+  //void fitPlane(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
+  void fitPlane(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_p);
   
 public:
 
@@ -117,14 +121,14 @@ MySubscriber::MySubscriber( ros::NodeHandle ao_nh, int no_arg, char** arguments 
     
     //viewer setup
     pcl::visualization::PCLVisualizer viewer ("Point Cloud"); 
-    viewer.addCoordinateSystem(10.0);
+    viewer.addCoordinateSystem(0.5);
     //viewer.runOnVisualizationThreadOnce (viewerOneOff);  
     pcl::PointXYZ o;
     o.x = 1.0;
     o.y = 0;
     o.z = 0;
     viewer.addSphere(o,0.25,"sphere",0);
-    viewer.addPointCloud(cloud_filtered_final_ptr);
+    //viewer.addPointCloud(cloud_filtered_final_ptr);
     //viewer.setBackgroundColor (1.0, 0.5, 1.0);
     
     while (!viewer.wasStopped ())
@@ -133,23 +137,42 @@ MySubscriber::MySubscriber( ros::NodeHandle ao_nh, int no_arg, char** arguments 
       if (updated) {
         updated=false;
         cloud_filtered_final_ptr= cloud_filtered_final.makeShared();
+        
+        viewer.removeAllPointClouds();
+        int i = 0, nr_points = (int) cloud_filtered_final_ptr->points.size ();
+        while (cloud_filtered_final_ptr->points.size () > 0.1 * nr_points)
+        {
+          i++;
+          pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_p (new pcl::PointCloud<pcl::PointXYZRGB>);
+          fitPlane(cloud_filtered_final_ptr,cloud_p);
+          pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> target_color (cloud_p, 0, std::max(255- i*(255/(4+1)),0), std::max(255- i*(255/(4+1)),0)); 
+          //std::string a= ;
+          viewer.addPointCloud(cloud_p, target_color, "nnnn_"+boost::lexical_cast<std::string>(i));
+          if(i>10)
+            break;
+        }
+        pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> target_color (cloud_filtered_final_ptr, 255, 0, 0); 
+        viewer.addPointCloud(cloud_filtered_final_ptr, target_color, "remaining");
         //cout<<"displaying "<<cloud_filtered_final_ptr->width<<" "<<cloud_filtered_final_ptr->height<<"\n";
-        pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> green_target (cloud_filtered_final_ptr, 0, 255, 0); 
-        viewer.updatePointCloud(cloud_filtered_final_ptr, green_target);
+
+        //viewer.updatePointCloud(cloud_filtered_final_ptr, green_target);
         viewer.spinOnce (1);
+        cout<<"------------------------new loop\n\n";
         //while(1);
       }
     }
     
   }
 }
+////////////////////////////////////////////////////////////////////////
 
-void MySubscriber::fitPlane(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud)  
+void MySubscriber::fitPlane(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_p)  
 {
+  pcl::ExtractIndices<pcl::PointXYZRGB> extract;
   pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
   pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
   // Create the segmentation object
-  pcl::SACSegmentation<pcl::PointXYZ> seg;
+  pcl::SACSegmentation<pcl::PointXYZRGB> seg;
   // Optional
   seg.setOptimizeCoefficients (true);
   // Mandatory
@@ -165,12 +188,23 @@ void MySubscriber::fitPlane(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud)
     cout<<"Could not estimate a planar model for the given dataset.";
     //return (-1);
   }
+  extract.setInputCloud (cloud);
+  extract.setIndices (inliers);
+  extract.setNegative (false);
+  extract.filter (*cloud_p);
+  std::cerr << "PointCloud size: " << cloud->width * cloud->height << " data points." << std::endl;
 
+  //std::cerr << "PointCloud representing the planar component: " << cloud_p->width * cloud_p->height << " data points." << std::endl;
+  
   std::cout << "Model coefficients: " << coefficients->values[0] << " " 
                                       << coefficients->values[1] << " "
                                       << coefficients->values[2] << " " 
                                       << coefficients->values[3] << std::endl;
   std::cout<< "Size of inliners: "<<inliers->indices.size ()<<std::endl;
+  extract.setNegative (true);
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_f (new pcl::PointCloud<pcl::PointXYZRGB>);
+  extract.filter (*cloud_f);
+  cloud.swap (cloud_f);
 }
 ////////////////////////////////////////////////////////////////////////
 void MySubscriber::cloud_cb (const sensor_msgs::PointCloud2ConstPtr& input)
@@ -205,9 +239,7 @@ void MySubscriber::cloud_cb (const sensor_msgs::PointCloud2ConstPtr& input)
   outrem.setMinNeighborsInRadius (filter_neighbour);
   outrem.filter (*cloud_filtered);
   
-  //ransac plane fitting
-  fitPlane(cloud_filtered);
-
+  
   // Publish the data
   sensor_msgs::PointCloud2 output;
   PcltoROSMSG(cloud_filtered,output);

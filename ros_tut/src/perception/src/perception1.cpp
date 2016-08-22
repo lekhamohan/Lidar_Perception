@@ -58,12 +58,14 @@ class MySubscriber
   float SmoothnessThreshold;//9 =3.0;
   float CurvatureThreshold;//10 =1.0;
   int reg_Neighbours;//11 =30;  
-  pcl::PointCloud<pcl::PointXYZ> cloud_filtered_final;
-  
+  pcl::PointCloud<pcl::PointXYZRGB> cloud_filtered_final;
+
+  float Ransac_dist_thres;
   bool updated;
 
   void cloud_cb (const sensor_msgs::PointCloud2ConstPtr& input);
   void region_flow_cluster (pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);//, pcl::visualization::CloudViewer& viewer);
+  void fitPlane(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
   
 public:
 
@@ -72,90 +74,102 @@ public:
 };
 
 ////////////////////////////////////////////////////////////////////////
-int num_arguments= 5;
+int num_arguments= 6;
 MySubscriber::MySubscriber( ros::NodeHandle ao_nh, int no_arg, char** arguments )
-  {
-    cout<<"num of arg "<<no_arg<<"\n";
-    if(no_arg< num_arguments) {
-      cout<<"\n usage arguments : 1:po_topic_name,  2:float:filter_radius,  3:filter_neighbour,    4:float:filter_voxel_size,";
-      //cout<<"  5:cluster_min_size,  6:cluster_max_size,  7:float:normal_search_radius,";
-      //cout<<"  8:normal_search_neigh,   9:float:SmoothnessThreshold,   10:float:CurvatureThreshold,";
-      //cout<<"  11:reg_Neighbours\n\n";
-      
-    } else {
+{
+  cout<<"num of arg "<<no_arg<<"\n";
+  if(no_arg< num_arguments) {
+    cout<<"\n usage arguments : 1:po_topic_name,  2:float:filter_radius,  3:filter_neighbour,    4:float:filter_voxel_size, 5:float:Ransac_dist_thres";
+    //cout<<"  5:cluster_min_size,  6:cluster_max_size,  7:float:normal_search_radius,";
+    //cout<<"  8:normal_search_neigh,   9:float:SmoothnessThreshold,   10:float:CurvatureThreshold,";
+    //cout<<"  11:reg_Neighbours\n\n";
+    
+  } else {
 
-      po_topic_name= arguments[1];
-      filter_radius= atof (arguments[2]);
-      filter_neighbour = atoi (arguments[3]);
-      filter_voxel_size= atof (arguments[4]);
-      //cluster_min_size= atoi (arguments[5]);
-      //cluster_max_size= atoi (arguments[6]);
-      //normal_search_radius= atof (arguments[7]);
-      //normal_search_neigh= atoi (arguments[8]);
-      //SmoothnessThreshold= atof (arguments[9]);
-      //CurvatureThreshold= atof (arguments[10]);
-      //reg_Neighbours= atoi (arguments[11]);
-      
-      do_region_flow_cluster=false;
-      updated=false;
-      filter_voxel=false;
-      if(filter_voxel_size>0)
-        filter_voxel=true;
-      
-      
-      po_sub = ao_nh.subscribe (po_topic_name, 1, &MySubscriber::cloud_cb, this );
-      pub = ao_nh.advertise<sensor_msgs::PointCloud2> ("output", 1);
-      // Spin
-      //ros::spin ();
-      
-      pcl::visualization::PCLVisualizer viewer ("Point Cloud"); 
-      //pcl::visualization::CloudViewer viewer ("Cloud viewer");
-      //viewer.addCoordinateSystem(10.0);
-      //viewer.showCloud(cloud_filtered_final);  
-      //viewer.runOnVisualizationThreadOnce (viewerOneOff);  
-      //ros::spin();
-      pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered_final_ptr (new pcl::PointCloud<pcl::PointXYZ>);
-      cloud_filtered_final_ptr= cloud_filtered_final.makeShared();
-      viewer.addPointCloud(cloud_filtered_final_ptr);
-      //cout<<"I am here\n";
-      pcl::PointXYZ o;
-      o.x = 1.0;
-      o.y = 0;
-      o.z = 0;
-      viewer.addSphere(o,0.25,"sphere",0);
-      while (!viewer.wasStopped ())
-      {
-        ros::spinOnce();
-        
-        //cout<<"waiting\n";
-        if (updated) {
-          updated=false;
-          
-          //pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered_final_ptr (new pcl::PointCloud<pcl::PointXYZ>);
-          cloud_filtered_final_ptr= cloud_filtered_final.makeShared();
-          
-          //cout<<"displaying "<<cloud_filtered_final_ptr->width<<" "<<cloud_filtered_final_ptr->height<<"\n";
-          viewer.updatePointCloud(cloud_filtered_final_ptr);
-          
-          //viewer.setBackgroundColor (1.0, 0.5, 1.0);
-          
-          viewer.spinOnce (1);
-          //while(1);
-        }
-        
+    po_topic_name= arguments[1];
+    filter_radius= atof (arguments[2]);
+    filter_neighbour = atoi (arguments[3]);
+    filter_voxel_size= atof (arguments[4]);
+    Ransac_dist_thres= atof (arguments[5]);
+    //cluster_min_size= atoi (arguments[5]);
+    //cluster_max_size= atoi (arguments[6]);
+    //normal_search_radius= atof (arguments[7]);
+    //normal_search_neigh= atoi (arguments[8]);
+    //SmoothnessThreshold= atof (arguments[9]);
+    //CurvatureThreshold= atof (arguments[10]);
+    //reg_Neighbours= atoi (arguments[11]);
+    
+    do_region_flow_cluster=false;
+    updated=false;
+    filter_voxel=false;
+    if(filter_voxel_size>0)
+      filter_voxel=true;
+    
+    
+    po_sub = ao_nh.subscribe (po_topic_name, 1, &MySubscriber::cloud_cb, this );
+    pub = ao_nh.advertise<sensor_msgs::PointCloud2> ("output", 1);
+    // Spin
+    //ros::spin ();
+    
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filtered_final_ptr (new pcl::PointCloud<pcl::PointXYZRGB>);
+    cloud_filtered_final_ptr= cloud_filtered_final.makeShared();
+    
+    //viewer setup
+    pcl::visualization::PCLVisualizer viewer ("Point Cloud"); 
+    viewer.addCoordinateSystem(10.0);
+    //viewer.runOnVisualizationThreadOnce (viewerOneOff);  
+    pcl::PointXYZ o;
+    o.x = 1.0;
+    o.y = 0;
+    o.z = 0;
+    viewer.addSphere(o,0.25,"sphere",0);
+    viewer.addPointCloud(cloud_filtered_final_ptr);
+    //viewer.setBackgroundColor (1.0, 0.5, 1.0);
+    
+    while (!viewer.wasStopped ())
+    {
+      ros::spinOnce();
+      if (updated) {
+        updated=false;
+        cloud_filtered_final_ptr= cloud_filtered_final.makeShared();
+        //cout<<"displaying "<<cloud_filtered_final_ptr->width<<" "<<cloud_filtered_final_ptr->height<<"\n";
+        pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> green_target (cloud_filtered_final_ptr, 0, 255, 0); 
+        viewer.updatePointCloud(cloud_filtered_final_ptr, green_target);
+        viewer.spinOnce (1);
+        //while(1);
       }
     }
+    
   }
-////////////////////////////////////////////////////////////////////////
-void viewerOneOff (pcl::visualization::PCLVisualizer& viewer) {
-  //viewer.setBackgroundColor (1.0, 0.5, 1.0);
-  pcl::PointXYZ o;
-  o.x = 1.0;
-  o.y = 0;
-  o.z = 0;
-  viewer.addSphere(o,0.25,"sphere",0);
-  //viewer.addSphere (o, 0.25, "sphere", 0);
-  ////cout << "i only run once" << std::endl;
+}
+
+void MySubscriber::fitPlane(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud)  
+{
+  pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
+  pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
+  // Create the segmentation object
+  pcl::SACSegmentation<pcl::PointXYZ> seg;
+  // Optional
+  seg.setOptimizeCoefficients (true);
+  // Mandatory
+  seg.setModelType (pcl::SACMODEL_PLANE);
+  seg.setMethodType (pcl::SAC_RANSAC);
+  seg.setDistanceThreshold (Ransac_dist_thres);
+
+  seg.setInputCloud (cloud);
+  seg.segment (*inliers, *coefficients);
+
+  if (inliers->indices.size () == 0)
+  {
+    cout<<"Could not estimate a planar model for the given dataset.";
+    //return (-1);
+  }
+
+  std::cout << "Model coefficients: " << coefficients->values[0] << " " 
+                                      << coefficients->values[1] << " "
+                                      << coefficients->values[2] << " " 
+                                      << coefficients->values[3] << std::endl;
+  std::cout<< "Size of inliners: "<<inliers->indices.size ()<<std::endl;
 }
 ////////////////////////////////////////////////////////////////////////
 void MySubscriber::cloud_cb (const sensor_msgs::PointCloud2ConstPtr& input)
@@ -189,12 +203,16 @@ void MySubscriber::cloud_cb (const sensor_msgs::PointCloud2ConstPtr& input)
   outrem.setRadiusSearch (filter_radius);
   outrem.setMinNeighborsInRadius (filter_neighbour);
   outrem.filter (*cloud_filtered);
+  
+  //ransac plane fitting
+  fitPlane(cloud_filtered);
 
   // Publish the data
   sensor_msgs::PointCloud2 output;
   PcltoROSMSG(cloud_filtered,output);
   
-  cloud_filtered_final=cloud;
+  //cloud_filtered_final=cloud;
+  copyPointCloud(cloud, cloud_filtered_final);
   //cout<<"size "<<cloud.width<<" "<<cloud.height<<"\n";
   pub.publish (output);
 }

@@ -117,34 +117,28 @@ MySubscriber::MySubscriber( ros::NodeHandle ao_nh, int no_arg, char** arguments 
       pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered_final_ptr (new pcl::PointCloud<pcl::PointXYZ>);
       cloud_filtered_final_ptr= cloud_filtered_final.makeShared();
       viewer.addPointCloud(cloud_filtered_final_ptr);
-      cout<<"I am here\n";
-      int first=0;
+      //cout<<"I am here\n";
+      pcl::PointXYZ o;
+      o.x = 1.0;
+      o.y = 0;
+      o.z = 0;
+      viewer.addSphere(o,0.25,"sphere",0);
       while (!viewer.wasStopped ())
       {
         ros::spinOnce();
         
-        cout<<"waiting\n";
+        //cout<<"waiting\n";
         if (updated) {
           updated=false;
           
           //pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered_final_ptr (new pcl::PointCloud<pcl::PointXYZ>);
           cloud_filtered_final_ptr= cloud_filtered_final.makeShared();
           
-          cout<<"displaying "<<cloud_filtered_final_ptr->width<<" "<<cloud_filtered_final_ptr->height<<"\n";
+          //cout<<"displaying "<<cloud_filtered_final_ptr->width<<" "<<cloud_filtered_final_ptr->height<<"\n";
+          viewer.updatePointCloud(cloud_filtered_final_ptr);
           
-          //viewer.showCloud(cloud_filtered_final_ptr);
-          if(first){
-            first=0;
-            viewer.addPointCloud(cloud_filtered_final_ptr);
-          } else {
-            viewer.updatePointCloud(cloud_filtered_final_ptr);
-          }
           //viewer.setBackgroundColor (1.0, 0.5, 1.0);
-          pcl::PointXYZ o;
-          o.x = 1.0;
-          o.y = 0;
-          o.z = 0;
-          viewer.addSphere(o,0.25,"sphere",0);
+          
           viewer.spinOnce (1);
           //while(1);
         }
@@ -201,7 +195,7 @@ void MySubscriber::cloud_cb (const sensor_msgs::PointCloud2ConstPtr& input)
   PcltoROSMSG(cloud_filtered,output);
   
   cloud_filtered_final=cloud;
-  cout<<"size "<<cloud.width<<" "<<cloud.height<<"\n";
+  //cout<<"size "<<cloud.width<<" "<<cloud.height<<"\n";
   pub.publish (output);
 }
 
